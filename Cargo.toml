@@ -1,0 +1,13 @@
+[package]
+name = "sashimi"
+version = "0.0.1"
+description = "Simplistic, lightweight encryption."
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rpassword="*"
+
+[build-dependencies]
+chrono = "*"
