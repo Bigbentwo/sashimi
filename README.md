@@ -1,3 +1,3 @@
-# sashimi
+# `sashimi` 刺身
 
-Write test
+# A library for simplistic, lightweight encryption.
