@@ -16,7 +16,7 @@ fn main() {
 
     let mut test = Sashimi::new();
     test.update("Hello");
-    println!("{:?}", test.finalize());
+    println!("{:?}", test.finalize(10, 3));
 
     let mut rng = ChaCha20Rng::from_entropy();
     println!("{}", rng.gen_range(0..10000));
