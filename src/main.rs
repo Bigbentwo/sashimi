@@ -1,10 +1,10 @@
-use sha3::{Digest, Sha3_256};
+use sha3::{Digest, Sha3_512};
 use rand::prelude::*;
 
 fn main() {
-    let mut hash = Sha3_256::new();
+    let mut hash = Sha3_512::new();
     //hash.update("data");
-    let hash: Vec<u8> = hash.finalize()[..].to_vec();
+    let hash: [u8; 8] = hash.finalize().as_slice().try_into().unwrap();
     for val in &hash {
         print!("{:X}", val);
     }
