@@ -3,7 +3,6 @@ use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 pub struct Sashimi {
     buffer: Vec<[u8; 64]>,
     hash: Sha3_512,
-    cnt: u64,
 }
 
 impl Sashimi {
@@ -11,31 +10,63 @@ impl Sashimi {
         Self {
             buffer: Vec::<[u8; 64]>::new(),
             hash: Sha3_512::new(),
-            cnt: 0,
         }
     }
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
         self.hash.update(data);
     }
-    fn get_cnt(&self) -> [u8; 8] {
-        unsafe { std::mem::transmute::<u64, [u8; 8]>(self.cnt) }
+    fn int_to_arr(val: u64) -> [u8; 8] {
+        unsafe { std::mem::transmute::<u64, [u8; 8]>(val) }
+    }
+    fn get_cnt(cnt: &mut u64) -> [u8; 8] {
+        let res = unsafe { std::mem::transmute::<u64, [u8; 8]>(*cnt) };
+        *cnt += 1;
+        res
     }
     fn flush_hash(&mut self) -> [u8; 64] {
         let res = self.hash.finalize_fixed_reset();
+        // this seems slow
         res.as_slice().try_into().unwrap()
     }
     pub fn finalize(&mut self, s_cost: usize, t_cost: usize) -> [u8; 64] {
+        const DELTA: usize = 3;
+        let mut cnt: u64 = 0;
+        let mut rnd = Sha3_512::new();
         self.buffer.resize(s_cost, [0u8; 64]);
-        self.hash.update(self.get_cnt());
-        self.cnt += 1;
+        self.hash.update(Self::get_cnt(&mut cnt));
         self.buffer[0] = self.flush_hash();
+
+        // expand buffer
         for m in 1..s_cost {
-            self.hash.update(self.get_cnt());
-            self.cnt += 1;
+            self.hash.update(Self::get_cnt(&mut cnt));
             self.hash.update(self.buffer[m - 1]);
+            self.buffer[m] = self.flush_hash();
         }
 
-        self.buffer[0]
+        // mix buffer
+        for t in 0..t_cost {
+            for m in 0..s_cost {
+                self.hash.update(Self::get_cnt(&mut cnt));
+                self.hash.update(self.buffer[m.overflowing_sub(1).0 % s_cost]);
+                self.hash.update(self.buffer[m]);
+                self.buffer[m] = self.flush_hash();
+
+                for i in 0..DELTA {
+                    self.hash.update(Self::get_cnt(&mut cnt));
+                    self.hash.update(self.buffer[m]);
+                    rnd.update(Self::int_to_arr(t as u64));
+                    rnd.update(Self::int_to_arr(m as u64));
+                    rnd.update(Self::int_to_arr(i as u64));
+                }
+            }
+        }
+
+        self.buffer[s_cost - 1]
+    }
+    pub fn reset(&mut self) {
+        self.hash.reset();
+        self.buffer.clear();
+        //self.buffer.shrink_to_fit();
     }
 }
 
@@ -47,6 +78,7 @@ mod tests {
     #[test]
     fn keccak_impl_test() {
         let hash = Sha3_512::new();
+        // RHS taken from NIST
         assert_eq!(
             hash.finalize()[..],
             hex!(
@@ -56,5 +88,15 @@ mod tests {
                  28 1D CD 26"
             )
         );
+    }
+
+    #[test]
+    fn sashimi_flush() {
+        let mut s = crate::Sashimi::new();
+        s.update("test");
+        let h1 = s.flush_hash();
+        s.update("test");
+        let h2 = s.flush_hash();
+        assert_eq!(h1, h2);
     }
 }
