@@ -3,6 +3,7 @@ use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 pub struct Sashimi {
     buffer: Vec<[u8; 64]>,
     passwd_hash: Sha3_512,
+    is_seeded: bool
 }
 
 impl Sashimi {
@@ -10,14 +11,17 @@ impl Sashimi {
         Self {
             buffer: Vec::<[u8; 64]>::new(),
             passwd_hash: Sha3_512::new(),
+            is_seeded: false
         }
     }
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
         self.passwd_hash.update(data);
     }
+    #[inline]
     fn int_to_arr(val: u64) -> [u8; 8] {
         unsafe { std::mem::transmute::<u64, [u8; 8]>(val) }
     }
+    #[inline]
     fn arr_to_int(arr: &[u8; 8]) -> u64 {
         unsafe { std::mem::transmute::<[u8; 8], u64>(*arr) }
     }
@@ -87,6 +91,8 @@ impl Sashimi {
             }
         }
 
+        self.is_seeded = true;
+
         self.buffer[s_cost - 1]
     }
 
@@ -100,6 +106,8 @@ impl Sashimi {
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
+    use rand::prelude::*;
+    use rand_chacha::ChaCha20Rng;
     use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 
     #[test]
@@ -125,5 +133,62 @@ mod tests {
         s.update("test");
         let h2 = s.passwd_hash.finalize_fixed_reset();
         assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn sashimi_reset() {
+        let mut t = super::Sashimi::new();
+        t.update("test");
+        let r1 = t.finalize("salt", 16, 2);
+        t.reset();
+        t.update("test");
+        let r2 = t.finalize("salt", 16, 2);
+        assert_eq!(r1, r2)
+    }
+
+    #[test]
+    fn test_salt_ne() {
+        let mut t = super::Sashimi::new();
+        t.update("test");
+        let r1 = t.finalize("salt_1", 16, 2);
+        t.reset();
+        t.update("test");
+        let r2 = t.finalize("salt_2", 16, 2);
+        assert_ne!(r1, r2)
+    }
+
+    #[test]
+    #[ignore = "takes to long"]
+    fn big_s_cost() {
+        let mut t = super::Sashimi::new();
+        t.update("test");
+        t.finalize("salt_2", 10usize.pow(6), 2);
+    }
+
+    #[test]
+    #[ignore = "takes to long"]
+    fn big_t_cost() {
+        let mut t = super::Sashimi::new();
+        t.update("test");
+        t.finalize("salt_2", 16, 10usize.pow(5));
+    }
+
+    #[test]
+    fn sufficiently_random() {
+        const ROUNDS: i32 = 256;
+        let mut rng = ChaCha20Rng::from_seed([6; 32]);
+        let mut t = super::Sashimi::new();
+        let mut cnt = 0.0;
+        for _ in 0..ROUNDS {
+            t.update("test");
+            let tmp = t.finalize(rng.gen::<[u8; 16]>(), 16, 2);
+            for byte in tmp {
+                cnt += byte.count_ones() as f32;
+            }
+        }
+        let res = cnt / (64.0 * 8.0 * (ROUNDS as f32));
+        println!("{}", res);
+        // check if approx. 50% of digits are ones
+        assert!(res >= 0.495 && res <= 0.505);
     }
 }

@@ -3,6 +3,7 @@ use rand_chacha::ChaCha20Rng;
 // use sha3::{Digest, Sha3_512};
 
 mod hash;
+mod cipher;
 use hash::Sashimi;
 
 fn main() {
