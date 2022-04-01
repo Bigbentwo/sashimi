@@ -2,78 +2,105 @@ use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 
 pub struct Sashimi {
     buffer: Vec<[u8; 64]>,
-    hash: Sha3_512,
+    passwd_hash: Sha3_512,
 }
 
 impl Sashimi {
     pub fn new() -> Self {
         Self {
             buffer: Vec::<[u8; 64]>::new(),
-            hash: Sha3_512::new(),
+            passwd_hash: Sha3_512::new(),
         }
     }
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.hash.update(data);
+        self.passwd_hash.update(data);
     }
     fn int_to_arr(val: u64) -> [u8; 8] {
         unsafe { std::mem::transmute::<u64, [u8; 8]>(val) }
     }
-    fn get_cnt(cnt: &mut u64) -> [u8; 8] {
-        let res = unsafe { std::mem::transmute::<u64, [u8; 8]>(*cnt) };
-        *cnt += 1;
-        res
+    fn arr_to_int(arr: &[u8; 8]) -> u64 {
+        unsafe { std::mem::transmute::<[u8; 8], u64>(*arr) }
     }
-    fn flush_hash(&mut self) -> [u8; 64] {
-        let res = self.hash.finalize_fixed_reset();
-        // this seems slow
-        res.as_slice().try_into().unwrap()
-    }
-    pub fn finalize(&mut self, s_cost: usize, t_cost: usize) -> [u8; 64] {
-        const DELTA: usize = 3;
-        let mut cnt: u64 = 0;
-        let mut rnd = Sha3_512::new();
-        self.buffer.resize(s_cost, [0u8; 64]);
-        self.hash.update(Self::get_cnt(&mut cnt));
-        self.buffer[0] = self.flush_hash();
 
-        // expand buffer
+    pub fn finalize(
+        &mut self,
+        salt: impl AsRef<[u8]>,
+        s_cost: usize,
+        t_cost: usize,
+    ) -> [u8; 64] {
+        const DELTA: usize = 3;
+
+        let mut salt_hash = Sha3_512::new();
+
+        let mut cnt: u64 = 0;
+        self.buffer.resize(s_cost, [0u8; 64]);
+        self.passwd_hash.update(Self::int_to_arr(cnt));
+        cnt += 1;
+
+        // fill buffer
+        self.buffer[0] = self.passwd_hash.finalize_fixed_reset().into();
         for m in 1..s_cost {
-            self.hash.update(Self::get_cnt(&mut cnt));
-            self.hash.update(self.buffer[m - 1]);
-            self.buffer[m] = self.flush_hash();
+            self.passwd_hash.update(Self::int_to_arr(cnt));
+            cnt += 1;
+            self.passwd_hash.update(self.buffer[m - 1]);
+            self.buffer[m] = self.passwd_hash.finalize_fixed_reset().into();
         }
 
         // mix buffer
         for t in 0..t_cost {
             for m in 0..s_cost {
-                self.hash.update(Self::get_cnt(&mut cnt));
-                self.hash.update(self.buffer[m.overflowing_sub(1).0 % s_cost]);
-                self.hash.update(self.buffer[m]);
-                self.buffer[m] = self.flush_hash();
+                // hash last and current block
+                self.passwd_hash.update(Self::int_to_arr(cnt));
+                cnt += 1;
+                self.passwd_hash
+                    .update(self.buffer[m.overflowing_sub(1).0 % s_cost]);
+                self.passwd_hash.update(self.buffer[m]);
+                self.buffer[m] =
+                    self.passwd_hash.finalize_fixed_reset().into();
 
+                // this is kind of ugly
                 for i in 0..DELTA {
-                    self.hash.update(Self::get_cnt(&mut cnt));
-                    self.hash.update(self.buffer[m]);
-                    rnd.update(Self::int_to_arr(t as u64));
-                    rnd.update(Self::int_to_arr(m as u64));
-                    rnd.update(Self::int_to_arr(i as u64));
+                    self.passwd_hash.update(Self::int_to_arr(cnt));
+                    cnt += 1;
+                    self.passwd_hash.update(self.buffer[m]);
+
+                    salt_hash.update(Self::int_to_arr(t as u64));
+                    salt_hash.update(Self::int_to_arr(m as u64));
+                    salt_hash.update(Self::int_to_arr(i as u64));
+                    salt_hash.update(Self::int_to_arr(cnt));
+                    cnt += 1;
+                    salt_hash.update(&salt);
+
+                    let tmp: [u8; 64] =
+                        salt_hash.finalize_fixed_reset().into();
+
+                    // I hate this
+                    let mut tmp2: [u8; 8] = [0u8; 8];
+                    tmp2.copy_from_slice(&tmp[0..8]);
+
+                    let r_index: usize = Self::arr_to_int(&tmp2) as usize;
+                    self.passwd_hash.update(self.buffer[r_index % s_cost]);
+
+                    self.buffer[m] =
+                        self.passwd_hash.finalize_fixed_reset().into();
                 }
             }
         }
 
         self.buffer[s_cost - 1]
     }
+
     pub fn reset(&mut self) {
-        self.hash.reset();
+        self.passwd_hash.reset();
         self.buffer.clear();
-        //self.buffer.shrink_to_fit();
+        //self.buffer.shrink_to_fit(); // might be a good idea, not sure
     }
 }
 
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
-    use sha3::{Digest, Sha3_512};
+    use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 
     #[test]
     fn keccak_impl_test() {
@@ -94,9 +121,9 @@ mod tests {
     fn sashimi_flush() {
         let mut s = crate::Sashimi::new();
         s.update("test");
-        let h1 = s.flush_hash();
+        let h1 = s.passwd_hash.finalize_fixed_reset();
         s.update("test");
-        let h2 = s.flush_hash();
+        let h2 = s.passwd_hash.finalize_fixed_reset();
         assert_eq!(h1, h2);
     }
 }
