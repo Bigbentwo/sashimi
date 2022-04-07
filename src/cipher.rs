@@ -4,7 +4,7 @@ use rand_chacha::ChaCha20Rng;
 use crate::hash;
 
 #[derive(Clone)]
-struct Settings {
+pub struct Settings {
     salt: [u8; 64],
     s_cost: usize,
     t_cost: usize,
@@ -29,7 +29,7 @@ impl Settings {
     }
 }
 
-struct Stream {
+pub struct Stream {
     settings: Settings,
     stream: hash::Sashimi,
     mask: [u8; 64],
@@ -37,11 +37,11 @@ struct Stream {
 }
 
 impl Stream {
-    fn new(key: impl AsRef<[u8]>, s_cost: usize, t_cost: usize) -> Self {
-        let settings = Settings::new(s_cost, t_cost);
+    pub fn new(key: impl AsRef<[u8]>) -> Self {
+        let settings = Settings::new_with_default();
         Self::from_settings(key, settings)
     }
-    fn from_settings(key: impl AsRef<[u8]>, settings: Settings) -> Self {
+    pub fn from_settings(key: impl AsRef<[u8]>, settings: Settings) -> Self {
         let mut stream = hash::Sashimi::new();
         stream.update(key);
         let mask =
@@ -53,7 +53,7 @@ impl Stream {
             cnt: 0,
         }
     }
-    fn apply(&mut self, data: &mut [u8]) {
+    pub fn apply(&mut self, data: &mut [u8]) {
         for byte in data {
             if self.cnt >= self.mask.len() {
                 self.stream.reset();
@@ -68,6 +68,9 @@ impl Stream {
             *byte = *byte ^ self.mask[self.cnt];
             self.cnt += 1;
         }
+    }
+    pub fn get_settings(&self) -> Settings {
+        self.settings.clone()
     }
 }
 
@@ -94,5 +97,12 @@ mod tests {
         stream1.apply(&mut data[..]);
         stream2.apply(&mut data[..]);
         assert_eq!(orig, data);
+    }
+
+    #[test]
+    fn salt_random() {
+        let s1 = Settings::new_with_default();
+        let s2 = Settings::new_with_default();
+        assert_ne!(s1.salt, s2.salt);
     }
 }

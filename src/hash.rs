@@ -3,7 +3,7 @@ use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 pub struct Sashimi {
     buffer: Vec<[u8; 64]>,
     passwd_hash: Sha3_512,
-    is_seeded: bool
+    is_seeded: bool,
 }
 
 impl Sashimi {
@@ -11,7 +11,7 @@ impl Sashimi {
         Self {
             buffer: Vec::<[u8; 64]>::new(),
             passwd_hash: Sha3_512::new(),
-            is_seeded: false
+            is_seeded: false,
         }
     }
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
@@ -26,6 +26,7 @@ impl Sashimi {
         unsafe { std::mem::transmute::<[u8; 8], u64>(*arr) }
     }
 
+    // this is unreadable; refactor!
     pub fn finalize(
         &mut self,
         salt: impl AsRef<[u8]>,
@@ -34,11 +35,14 @@ impl Sashimi {
     ) -> [u8; 64] {
         const DELTA: usize = 3;
 
+        let s_cost = s_cost + 1; // just in case if s_cost == 0
+
         let mut salt_hash = Sha3_512::new();
 
         let mut cnt: u64 = 0;
         self.buffer.resize(s_cost, [0u8; 64]);
         self.passwd_hash.update(Self::int_to_arr(cnt));
+        self.passwd_hash.update(&salt); // really important; almost forgot
         cnt += 1;
 
         // fill buffer
@@ -98,8 +102,7 @@ impl Sashimi {
 
     pub fn reset(&mut self) {
         self.passwd_hash.reset();
-        self.buffer.clear();
-        //self.buffer.shrink_to_fit(); // might be a good idea, not sure
+        self.buffer.clear(); // pray that this doesn't deallocate
     }
 }
 
@@ -127,7 +130,7 @@ mod tests {
 
     #[test]
     fn sashimi_flush() {
-        let mut s = crate::Sashimi::new();
+        let mut s = super::Sashimi::new();
         s.update("test");
         let h1 = s.passwd_hash.finalize_fixed_reset();
         s.update("test");
@@ -190,5 +193,13 @@ mod tests {
         println!("{}", res);
         // check if approx. 50% of digits are ones
         assert!(res >= 0.495 && res <= 0.505);
+    }
+
+    #[test]
+    fn unicode() {
+        let mut t1 = super::Sashimi::new();
+        let mut t2 = super::Sashimi::new();
+        t1.update("😁");
+        assert_ne!(t1.finalize("abc", 16, 2), t2.finalize("abc", 16, 2));
     }
 }
