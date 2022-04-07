@@ -71,7 +71,7 @@ fn bench(
     }
     let pb = ProgressBar::new(msg_size as u64);
     pb.set_style(ProgressStyle::default_bar()
-    .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})"));
+    .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}) ({eta})"));
     let now = std::time::Instant::now();
     let mut stream =
         Stream::from_settings("abc", Settings::new(s_cost, t_cost));

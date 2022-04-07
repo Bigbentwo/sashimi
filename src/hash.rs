@@ -35,8 +35,6 @@ impl Sashimi {
     ) -> [u8; 64] {
         const DELTA: usize = 3;
 
-        let s_cost = s_cost + 1; // just in case if s_cost == 0
-
         let mut salt_hash = Sha3_512::new();
 
         let mut cnt: u64 = 0;
