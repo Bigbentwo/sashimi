@@ -31,7 +31,7 @@ impl Settings {
 
 pub struct Stream {
     settings: Settings,
-    stream: hash::Sashimi,
+    stream: hash::Balloon,
     mask: [u8; 64],
     cnt: usize,
 }
@@ -42,7 +42,7 @@ impl Stream {
         Self::from_settings(key, settings)
     }
     pub fn from_settings(key: impl AsRef<[u8]>, settings: Settings) -> Self {
-        let mut stream = hash::Sashimi::new();
+        let mut stream = hash::Balloon::new();
         stream.update(key);
         let mask =
             stream.finalize(settings.salt, settings.s_cost, settings.t_cost);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn import_path_test() {
-        let _t = hash::Sashimi::new();
+        let _t = hash::Balloon::new();
     }
 
     #[test]

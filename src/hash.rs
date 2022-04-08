@@ -1,12 +1,12 @@
 use sha3::{digest::FixedOutputReset, Digest, Sha3_512};
 
-pub struct Sashimi {
+pub struct Balloon {
     buffer: Vec<[u8; 64]>,
     passwd_hash: Sha3_512,
     is_seeded: bool,
 }
 
-impl Sashimi {
+impl Balloon {
     pub fn new() -> Self {
         Self {
             buffer: Vec::<[u8; 64]>::new(),
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn sashimi_flush() {
-        let mut s = super::Sashimi::new();
+        let mut s = super::Balloon::new();
         s.update("test");
         let h1 = s.passwd_hash.finalize_fixed_reset();
         s.update("test");
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn sashimi_reset() {
-        let mut t = super::Sashimi::new();
+        let mut t = super::Balloon::new();
         t.update("test");
         let r1 = t.finalize("salt", 16, 2);
         t.reset();
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_salt_ne() {
-        let mut t = super::Sashimi::new();
+        let mut t = super::Balloon::new();
         t.update("test");
         let r1 = t.finalize("salt_1", 16, 2);
         t.reset();
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     #[ignore = "takes to long"]
     fn big_s_cost() {
-        let mut t = super::Sashimi::new();
+        let mut t = super::Balloon::new();
         t.update("test");
         t.finalize("salt_2", 10usize.pow(6), 2);
     }
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     #[ignore = "takes to long"]
     fn big_t_cost() {
-        let mut t = super::Sashimi::new();
+        let mut t = super::Balloon::new();
         t.update("test");
         t.finalize("salt_2", 16, 10usize.pow(5));
     }
@@ -178,7 +178,7 @@ mod tests {
     fn sufficiently_random() {
         const ROUNDS: i32 = 256;
         let mut rng = ChaCha20Rng::from_seed([6; 32]);
-        let mut t = super::Sashimi::new();
+        let mut t = super::Balloon::new();
         let mut cnt = 0.0;
         for _ in 0..ROUNDS {
             t.update("test");
@@ -195,8 +195,8 @@ mod tests {
 
     #[test]
     fn unicode() {
-        let mut t1 = super::Sashimi::new();
-        let mut t2 = super::Sashimi::new();
+        let mut t1 = super::Balloon::new();
+        let mut t2 = super::Balloon::new();
         t1.update("😁");
         assert_ne!(t1.finalize("abc", 16, 2), t2.finalize("abc", 16, 2));
     }

@@ -57,7 +57,9 @@ fn main() {
 fn run_bench() {
     println!("Bench");
 
-    bench(8usize.pow(8), 10, 3);
+    for i in 1..10 {
+        bench(8usize.pow(8), i, 2);
+    }
 }
 
 fn bench(
@@ -71,13 +73,15 @@ fn bench(
     }
     let pb = ProgressBar::new(msg_size as u64);
     pb.set_style(ProgressStyle::default_bar()
-    .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}) ({eta})"));
+    .template("[{elapsed_precise}] [{wide_bar}] {bytes}/{total_bytes} ({bytes_per_sec}) ({eta})"));
     let now = std::time::Instant::now();
     let mut stream =
         Stream::from_settings("abc", Settings::new(s_cost, t_cost));
-    for i in 0..v1.len() {
-        stream.apply(&mut v1[i..=i]);
-        pb.inc(1);
+
+    const STEP: usize = 512 * 2;
+    for i in (0..v1.len()).step_by(STEP) {
+        stream.apply(&mut v1[i..(i + STEP)]);
+        pb.inc(STEP as u64);
     }
     pb.finish_with_message("done");
     now.elapsed()
