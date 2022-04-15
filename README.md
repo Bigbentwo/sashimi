@@ -2,6 +2,12 @@
 
 # A primitive tool for encryption.
 
+## Properties it should have
+- Encrypted data indistinguishable from noise
+- Salted keys
+- Multiple files
+- Nested containers for hidden containers
+
 ## Prototype idea
 0. Generate entropy from ChaCha20Rng and getrandom
 1. Custom memory intensive hash function based on SHA3
@@ -14,45 +20,4 @@
 
 ## Custom `sashimi-hash` function
 Use SHA3-512 of `input` to fill a buffer of a give size `c_cost` (probably in
-the range of 500 MB). Mix contents of the buffer. 
-
-```
-   ┌───────────────────┐┌────────────┐┌────────┐┌───────────────┐      
-   │     Plaintext     ││    Key     ││ Config ││    Entropy    │──┐   
-   └───────────────────┘└────────────┘└────────┘└───────────────┘  │   
-             ┃                 │                                   │   
-             ┃              ┌──┘            ╔═════════════════╗    │   
-             ┃              │               ║   ChaCha20Rng   ║◀───┘   
-             ┃              ▼               ╚═════════════════╝        
-             ┃     ╔═════════════════╗               │                 
-             ┃     ║  sashimi-hash   ║◀────────┐     └─────────┐       
-             ┃     ╚═════════════════╝         │               ▼       
-             ┃              │                  │          ┌────────┐   
-             ┃              ▼                  └──────────│  Salt  │──┐
-             ┃     ┌─────────────────┐                    └────────┘  │
-             ┃     │   Salted key    │─────────────────┐              │
-             ┃     └─────────────────┘                 ▼              │
-             ┃              │                 ╔═════════════════╗     │
-             ┃              ▼                 ║  sashimi-hash   ║     │
-             ┃     ╔═════════════════╗        ║  stream cipher  ║     │
-             ┣────▶║  sashimi-hash   ║        ╚═════════════════╝     │
-             ┃     ╚═════════════════╝                 │              │
-             ┃              │                          │              │
-             ▼              ▼                          ▼              │
-   ┌───────────────────┬─────────┐           ┌──────────────────┐     │
-   │     Plaintext     │   MAC   │━━━━┳──────│     Bitmask      │     │
-   └───────────────────┴─────────┘    ┃      └──────────────────┘     │
-                                      ┃                               │
-                                      ┃                               │
-                                      ▼                               │
-                                  ╔═══════╗                           │
-                                  ║  Xor  ║                           │
-                                  ╚═══════╝                           │
-                                      ┃                               │
-                        ┏━━━━━━━━━━━━━┛                               │
-                        ┃                                             │
-                        ▼                                             │
-            ┌───────────────────────┬────────┬───────┐                │
-            │      Ciphertext       │ Config │ Salt  │◀───────────────┘
-            └───────────────────────┴────────┴───────┘                 
-```
+the range of 500 MB). Mix contents of the buffer.

@@ -30,19 +30,11 @@ fn main() {
     let mut password =
         rpassword::prompt_password("Encryption password: ").unwrap();
 
-    let pb = ProgressBar::new(msg.len() as u64);
-    pb.tick();
-
     let set = cipher::Settings::new(10usize.pow(2), 60);
     let mut stream = cipher::Stream::from_settings(password, set);
 
-    for i in 0..msg.len() {
-        pb.inc(1);
-        stream.apply(&mut msg[i..=i]);
-    }
+    stream.apply(&mut msg[1..]);
     //stream.apply(&mut msg);
-
-    pb.finish_with_message("done");
 
     println!("Turned into: {:?}", msg);
     password = rpassword::prompt_password("Decryption password: ").unwrap();
@@ -57,9 +49,7 @@ fn main() {
 fn run_bench() {
     println!("Bench");
 
-    for i in 1..10 {
-        bench(8usize.pow(8), i, 2);
-    }
+    bench(8usize.pow(8), 16, 2);
 }
 
 fn bench(
@@ -71,9 +61,10 @@ fn bench(
     for _ in 0..msg_size {
         v1.push(rand::random());
     }
+    let head = format!("({}, {}): ", s_cost, t_cost);
     let pb = ProgressBar::new(msg_size as u64);
     pb.set_style(ProgressStyle::default_bar()
-    .template("[{elapsed_precise}] [{wide_bar}] {bytes}/{total_bytes} ({bytes_per_sec}) ({eta})"));
+    .template(&(head + "[{elapsed_precise}] [{wide_bar}] {bytes}/{total_bytes} ({bytes_per_sec}) ({eta})")));
     let now = std::time::Instant::now();
     let mut stream =
         Stream::from_settings("abc", Settings::new(s_cost, t_cost));
