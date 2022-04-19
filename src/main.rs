@@ -22,7 +22,7 @@ fn main() {
     };
 
     let s = String::from(
-        "This is clear text lorem ipsum something something long text make longer etc.",
+        "This is clear text lorem ipsum something something long text make longer",
     );
     let mut msg = bincode::serialize(&s).unwrap();
 
