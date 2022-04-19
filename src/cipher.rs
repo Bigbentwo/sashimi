@@ -79,8 +79,9 @@ impl Stream {
     }
     pub fn apply(&mut self, mut data: impl AsMut<[u8]>) {
         for byte in data.as_mut() {
+            // generate new mask
             if self.cnt >= self.mask.len() {
-                self.stream.reset();
+                self.stream.reset(); // I think this is broken
                 self.stream.update(self.mask);
                 self.mask = self.stream.finalize(
                     self.settings.salt,

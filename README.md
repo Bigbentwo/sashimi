@@ -3,12 +3,12 @@
 # A primitive tool for encryption.
 
 ## Properties it should have
-- Encrypted data indistinguishable from noise
+- Encrypted data indistinguishable from random noise
 - Salted keys
-- Multiple files
-- Nested containers for hidden containers
+- (Multiple files) optional for now
+- (Nested containers for hidden containers) also optional
 
-## Prototype idea
+## Prototype idea (old)
 0. Generate entropy from ChaCha20Rng and getrandom
 1. Custom memory intensive hash function based on SHA3
 2. Hash for key (256 + 256) (salted)
@@ -18,6 +18,5 @@
 6. Keccak based stream cipher
 7. Store result as zip
 
-## Custom `sashimi-hash` function
-Use SHA3-512 of `input` to fill a buffer of a give size `c_cost` (probably in
-the range of 500 MB). Mix contents of the buffer.
+Comment on current implementation:
+- Approach to stream cipher is broken

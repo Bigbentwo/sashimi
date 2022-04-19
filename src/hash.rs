@@ -27,6 +27,7 @@ impl Balloon {
     }
 
     // this is unreadable; refactor!
+    // And this implementation evens seems to be incorrect
     pub fn finalize(
         &mut self,
         salt: impl AsRef<[u8]>,
@@ -98,6 +99,7 @@ impl Balloon {
         self.buffer[s_cost - 1]
     }
 
+    // this function straight up should't exist
     pub fn reset(&mut self) {
         self.passwd_hash.reset();
         self.buffer.clear(); // pray that this doesn't deallocate
